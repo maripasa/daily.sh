@@ -1,0 +1,93 @@
+#!/bin/bash
+
+# Function to display help
+show_help() {
+    echo "Usage: $0 [options] [tasks...]"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help             		Show this help message"
+    echo "  -o, -y, --ontem, --yesterday        Use yesterday's date and change 'hoje' to 'ontem'"
+    echo "  -n, --nome, --name  NAME             Change the name permanently (default: 'Your Name')"
+    echo "  -p, --problema, --problem  TEXT     Change the problem description (default: 'Não')"
+    echo ""
+    echo "Tasks are the activities you want to list for the day."
+}
+
+# Check if xclip is installed
+if ! command -v xclip &> /dev/null; then
+    echo "xclip could not be found, please install it to use this script."
+    exit 1
+fi
+
+# Default values
+FILE_NAME=$0
+DATE_OPTION="hoje"
+DATE_FORMAT="%d/%m"
+NAME="Your Name"  # Changed default name
+PROBLEM="Não"
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -h|--help) 
+            show_help
+            exit 0
+            ;;
+        -o|-y|--yesterday|--ontem)
+            DATE_OPTION="ontem"
+            ;;
+        -n|--name|--nome)
+            if [[ -n "$2" ]]; then
+                NAME=$2
+                sudo sed -i "s/NAME=\"[^\"]*\"/NAME=\"$2\"/" "$FILE_NAME"
+                shift
+            else
+                echo "Error: --nome requires a non-empty option argument."
+                show_help
+                exit 1
+            fi
+            ;;
+        -p|--problem|--problema)
+            if [[ -n "$2" ]]; then
+                PROBLEM="$2"
+                shift
+            else
+                echo "Error: --problema requires a non-empty option argument."
+                show_help
+                exit 1
+            fi
+            ;;
+        *) 
+            TASKS+=("$1")
+            ;;
+    esac
+    shift
+done
+
+# Determine the date
+if [[ "$DATE_OPTION" == "ontem" ]]; then
+    DATE=$(date -d "yesterday" +"$DATE_FORMAT")
+    TODAY_WORD="ontem"
+else
+    DATE=$(date +"$DATE_FORMAT")
+    TODAY_WORD="hoje"
+fi
+
+# Build the task list
+TEXT=""
+for task in "${TASKS[@]}"; do
+    TEXT+="  • $task\n"
+done
+
+# Create the final output
+OUTPUT="Daily $DATE
+Nome: $NAME
+
+*O que fiz/vou fazer $TODAY_WORD?*
+$TEXT
+*Estou com problema em algo?*
+  • $PROBLEM"
+
+# Copy the output to clipboard
+echo -e "$OUTPUT" | xclip -selection clipboard
+
+echo "Copied."
