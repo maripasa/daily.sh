@@ -9,6 +9,7 @@ show_help() {
     echo "  -o, -y, --ontem, --yesterday        Use yesterday's date and change 'hoje' to 'ontem'"
     echo "  -n, --nome, --name  NAME             Change the name permanently (default: 'Your Name')"
     echo "  -p, --problema, --problem  TEXT     Change the problem description (default: 'Não')"
+    echo "  -t, --tag  SPACES                   Set the number of whitespaces before the bullet point (default: 4)"
     echo ""
     echo "Tasks are the activities you want to list for the day."
 }
@@ -23,8 +24,9 @@ fi
 FILE_NAME=$0
 DATE_OPTION="hoje"
 DATE_FORMAT="%d/%m"
-NAME="Your Name"  # Changed default name
+NAME="Your Name"
 PROBLEM="Não"
+WHITESPACE_COUNT=4
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -56,6 +58,17 @@ while [[ "$#" -gt 0 ]]; do
                 exit 1
             fi
             ;;
+        -t|--tag)
+            if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
+                WHITESPACE_COUNT=4$2
+                sudo sed -i "s/WHITESPACE_COUNT=4[0-9]*/WHITESPACE_COUNT=$2/" "$FILE_NAME"
+                shift
+            else
+                echo "Error: --tag requires a non-empty numeric option argument."
+                show_help
+                exit 1
+            fi
+            ;;
         *) 
             TASKS+=("$1")
             ;;
@@ -74,8 +87,9 @@ fi
 
 # Build the task list
 TEXT=""
+SPACES=$(printf '%*s' "$WHITESPACE_COUNT" '' | tr ' ' ' ')
 for task in "${TASKS[@]}"; do
-    TEXT+="  • $task\n"
+    TEXT+="$SPACES• $task\n"
 done
 
 # Create the final output
@@ -85,9 +99,10 @@ Nome: $NAME
 *O que fiz/vou fazer $TODAY_WORD?*
 $TEXT
 *Estou com problema em algo?*
-  • $PROBLEM"
+$SPACES• $PROBLEM"
 
 # Copy the output to clipboard
 echo -e "$OUTPUT" | xclip -selection clipboard
 
 echo "Copied."
+
